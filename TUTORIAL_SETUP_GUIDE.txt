@@ -1,0 +1,373 @@
+================================================================================
+  RAVI SHARMA PHOTO & FILMS - CINEMATIC PHOTO SELECTION PORTAL
+  Complete Setup & Deployment Guide
+================================================================================
+
+📌 PROJECT OVERVIEW
+-------------------
+Domain: select.ravisharmaphotofilms.in
+Tech Stack: React + Vite + Lovable Cloud (Supabase) + EmailJS + Google Drive
+Purpose: Premium photo selection portal for photography clients
+
+================================================================================
+PHASE 1: BACKEND SETUP (LOVABLE CLOUD / SUPABASE)
+================================================================================
+
+This project uses Lovable Cloud, which provides a fully managed Supabase backend.
+No external Supabase account needed - it's automatically provisioned!
+
+✅ WHAT'S ALREADY CONFIGURED:
+- Database tables (users, photos, selections, feedback, etc.)
+- Row Level Security (RLS) policies
+- Authentication system
+- Real-time subscriptions
+
+🔧 ADMIN ROLE SETUP (REQUIRED):
+After your first admin user signs up, you need to grant them admin privileges:
+
+1. Open Lovable Cloud Backend (click Backend button in Lovable editor)
+2. Go to SQL Editor
+3. Run this command (replace with your admin email):
+
+   INSERT INTO public.user_roles (user_id, role)
+   SELECT id, 'admin'::app_role
+   FROM auth.users
+   WHERE email = 'ravi.rv73838@gmail.com';
+
+4. Verify with:
+   SELECT * FROM public.user_roles;
+
+================================================================================
+PHASE 2: EMAILJS CONFIGURATION
+================================================================================
+
+EmailJS is used for sending notifications when clients finalize selections.
+
+🔑 YOUR EMAILJS CREDENTIALS:
+Service ID: service_zl7rcg1
+Template ID: template_n5ur429
+Public Key: a4-PdJdb-Lp5Vt8_3
+Admin Email: ravi.rv73838@icloud.com
+
+📧 SETUP STEPS:
+1. Go to https://www.emailjs.com/
+2. Sign in (or create account if you haven't already)
+3. Verify the service "service_zl7rcg1" exists
+4. Verify the template "template_n5ur429" exists
+5. Template should include these variables:
+   - {{user_name}}
+   - {{user_email}}
+   - {{selection_count}}
+   - {{feedback_comment}}
+
+📝 TEMPLATE EXAMPLE:
+   Subject: Client Selection Finalized - {{user_name}}
+   
+   Body:
+   Hi Admin,
+   
+   {{user_name}} ({{user_email}}) has finalized their photo selection.
+   
+   Total Selected: {{selection_count}} photos
+   
+   Feedback:
+   {{feedback_comment}}
+   
+   Please process their selection.
+
+================================================================================
+PHASE 3: GOOGLE DRIVE INTEGRATION (OPTIONAL - FOR ZIP DOWNLOADS)
+================================================================================
+
+If you want clients to download selected photos as ZIP files, set up Drive API:
+
+🔧 SETUP GOOGLE CLOUD PROJECT:
+1. Go to https://console.cloud.google.com/
+2. Create new project: "ravisharmaphotofilms-selection"
+3. Enable Google Drive API
+4. Create Service Account:
+   - Name: "photo-selection-service"
+   - Role: "Viewer" (read-only access)
+5. Create JSON key for service account
+6. Download the JSON key file
+
+📁 ORGANIZE YOUR DRIVE:
+1. Create root folder: "Client Photo Events"
+2. Share with service account email (viewer access)
+3. Inside, create subfolders per event:
+   - Wedding_Sharma_2024/
+   - Engagement_Kumar_2024/
+   - etc.
+
+🔐 ADD SERVICE ACCOUNT TO NETLIFY:
+1. Copy entire JSON key content
+2. In Netlify: Site Settings > Environment Variables
+3. Add variable: SERVICE_ACCOUNT_JSON
+4. Paste JSON content as value (keep as single line)
+
+⚠️ IMPORTANT SECURITY NOTES:
+- Service account should have VIEWER permission only (read-only)
+- Never commit service account JSON to Git
+- Store securely in Netlify environment variables
+- Rotate keys periodically
+
+================================================================================
+PHASE 4: NETLIFY DEPLOYMENT
+================================================================================
+
+📦 DEPLOY TO NETLIFY:
+
+METHOD 1: GitHub Connection (Recommended)
+1. Push your code to GitHub repository
+2. Connect Netlify to GitHub repo
+3. Build settings:
+   - Build command: npm run build
+   - Publish directory: dist
+   - Base directory: (leave empty)
+
+METHOD 2: Netlify CLI
+1. Install: npm install -g netlify-cli
+2. Login: netlify login
+3. Deploy: netlify deploy --prod
+
+🔧 ENVIRONMENT VARIABLES IN NETLIFY:
+Go to Site Settings > Environment Variables and add:
+
+REQUIRED (Already set by Lovable):
+- VITE_SUPABASE_URL (auto-configured)
+- VITE_SUPABASE_PUBLISHABLE_KEY (auto-configured)
+
+REQUIRED (You must add):
+- VITE_EMAILJS_SERVICE_ID=service_zl7rcg1
+- VITE_EMAILJS_TEMPLATE_ID=template_n5ur429
+- VITE_EMAILJS_PUBLIC_KEY=a4-PdJdb-Lp5Vt8_3
+- VITE_ADMIN_EMAIL=ravi.rv73838@icloud.com
+
+OPTIONAL (Only if using ZIP downloads):
+- SERVICE_ACCOUNT_JSON=(paste entire JSON from Google Cloud)
+
+🌐 CUSTOM DOMAIN SETUP:
+1. In Netlify: Domain Settings > Add custom domain
+2. Enter: select.ravisharmaphotofilms.in
+3. Add DNS records at your domain provider:
+   
+   Type: CNAME
+   Name: select
+   Value: [your-netlify-site].netlify.app
+   
+4. Wait for DNS propagation (can take up to 48 hours)
+5. Enable HTTPS (Netlify auto-provisions Let's Encrypt certificate)
+
+================================================================================
+PHASE 5: USAGE WORKFLOW
+================================================================================
+
+👨‍💼 ADMIN WORKFLOW:
+1. Login at /admin using Google Sign-In (ravi.rv73838@gmail.com)
+2. Create client accounts in Users tab
+3. Upload photos to Google Drive (organized by event)
+4. Assign folder paths to each client
+5. Client receives credentials and can start selecting
+6. Monitor progress in Dashboard
+7. Receive email notification when client finalizes
+8. Download selection CSV and process photos
+
+👤 CLIENT WORKFLOW:
+1. Receive username/password from admin
+2. Login at select.ravisharmaphotofilms.in
+3. View hero slideshow and guide
+4. Browse photo gallery
+5. Select favorite photos (within limit)
+6. Mark some for "Later" review
+7. Review selections before finalizing
+8. Submit feedback and finalize
+9. Admin receives notification
+
+================================================================================
+PHASE 6: HELPER SCRIPTS FOR PHOTO PROCESSING
+================================================================================
+
+These Python/PowerShell scripts help you copy original RAW files based on 
+client's JPEG selections.
+
+📂 SCRIPT LOCATION:
+Available in admin panel under "Admin Tools" tab
+
+🐍 PYTHON SCRIPT (copy_selected_raws.py):
+- Cross-platform (Windows/Mac/Linux)
+- GUI for selecting CSV and source folder
+- Copies RAW originals matching selected JPEGs
+- Creates "Final_Selection" folder automatically
+
+💻 WINDOWS SCRIPTS:
+- run_copy_selected.bat - One-click launcher
+- copy_selected_raws.ps1 - PowerShell version
+
+📋 HOW TO USE:
+1. Download selection_list.csv from admin panel
+2. Download helper script (choose Python or Windows)
+3. Run script
+4. Select the CSV file
+5. Select your main RAW photo folder
+6. Script copies all matching RAW files
+7. Find processed photos in "Final_Selection" folder
+
+⚡ AUTOMATION:
+When client finalizes:
+- Admin receives email with CSV attached
+- Email includes download link to helper scripts
+- Admin runs script to batch-copy RAW files
+- No manual file searching needed!
+
+================================================================================
+PHASE 7: TROUBLESHOOTING
+================================================================================
+
+❌ "Access Denied" when accessing admin panel:
+   → Make sure you added admin role in Supabase (Phase 1)
+   → Check that you're signed in with correct Google account
+
+❌ EmailJS not sending notifications:
+   → Verify environment variables in Netlify
+   → Check EmailJS dashboard for error logs
+   → Ensure template variables match exactly
+
+❌ Photos not loading:
+   → Check Google Drive folder is shared with service account
+   → Verify folder IDs are correct in database
+   → Check Drive API is enabled in Google Cloud
+
+❌ Custom domain not working:
+   → Verify DNS records are correct
+   → Wait for DNS propagation (up to 48 hours)
+   → Check domain provider's DNS settings
+
+❌ Client can't select photos (limit reached):
+   → Check selection_limit in users table
+   → Increase limit in admin panel > Users tab
+
+❌ ZIP download fails:
+   → Verify SERVICE_ACCOUNT_JSON in Netlify env vars
+   → Check service account has viewer permission on Drive
+   → Enable Google Drive API in Cloud Console
+
+================================================================================
+PHASE 8: SECURITY BEST PRACTICES
+================================================================================
+
+🔒 AUTHENTICATION:
+- Admin access restricted to specific Google account
+- Client passwords stored securely (hashed)
+- Session tokens expire after inactivity
+- Role-based access control via Supabase RLS
+
+🛡️ DATA PROTECTION:
+- All client data encrypted at rest (Supabase)
+- HTTPS enforced on custom domain
+- Service account has read-only Drive access
+- No sensitive data in client-side code
+
+🔐 API KEYS:
+- EmailJS public key is safe for frontend
+- Supabase publishable key is safe for frontend
+- Service account JSON must ONLY be in Netlify env vars
+- Never commit .env files to Git
+
+⚠️ REGULAR MAINTENANCE:
+- Rotate service account keys every 90 days
+- Review admin access logs monthly
+- Update dependencies regularly (npm update)
+- Monitor Supabase usage limits
+
+================================================================================
+PHASE 9: SCALING & OPTIMIZATION
+================================================================================
+
+📊 PERFORMANCE TIPS:
+- Photos are lazy-loaded for smooth scrolling
+- Thumbnails used for gallery view
+- Full resolution only loaded in viewer
+- Virtualized scrolling for large photo sets
+
+💾 STORAGE OPTIMIZATION:
+- Store only lightweight JPEGs in Drive
+- Keep RAW files on local/backup storage
+- Use Google Drive's "Make available offline" for admin access
+- Clean up old client selections after processing
+
+📈 USER LIMITS:
+Lovable Cloud (Supabase) Free Tier:
+- 500MB database storage
+- 1GB file storage
+- 50K monthly active users
+- 2 million database rows
+
+If you exceed these, upgrade to Pro plan in Lovable settings.
+
+================================================================================
+PHASE 10: SUPPORT & RESOURCES
+================================================================================
+
+📚 DOCUMENTATION:
+- Lovable Docs: https://docs.lovable.dev/
+- Supabase Docs: https://supabase.com/docs
+- EmailJS Docs: https://www.emailjs.com/docs/
+- Google Drive API: https://developers.google.com/drive/api/guides/about-sdk
+
+🆘 NEED HELP?
+- Email: ravi.rv73838@icloud.com
+- Lovable Community: discord.gg/lovable
+- Check browser console for errors
+- Review Supabase logs in Lovable Cloud backend
+
+🎉 FEATURE REQUESTS:
+Future enhancements planned:
+- AI-powered photo clustering
+- Client testimonial integration
+- Advanced analytics dashboard
+- Mobile app (iOS/Android)
+
+================================================================================
+✅ SETUP CHECKLIST
+================================================================================
+
+Phase 1: Backend
+[ ] Lovable Cloud initialized
+[ ] Admin role assigned in database
+[ ] Test login with admin account
+
+Phase 2: EmailJS
+[ ] Service configured
+[ ] Template created
+[ ] Test email notification
+
+Phase 3: Google Drive (Optional)
+[ ] Service account created
+[ ] Drive folders shared
+[ ] JSON key added to Netlify
+
+Phase 4: Deployment
+[ ] Code pushed to GitHub
+[ ] Netlify connected
+[ ] Environment variables set
+[ ] Custom domain configured
+[ ] HTTPS enabled
+
+Phase 5: Testing
+[ ] Admin login works
+[ ] Client can select photos
+[ ] Review selection page works
+[ ] Finalize triggers email
+[ ] Helper scripts download
+
+================================================================================
+🎬 YOU'RE ALL SET!
+================================================================================
+
+Your cinematic photo selection portal is ready to delight your clients with
+a premium, Apple-like experience for choosing their favorite memories.
+
+For questions or support: ravi.rv73838@icloud.com
+
+Built with ❤️ by Ravi Sharma Photo & Films
+================================================================================
