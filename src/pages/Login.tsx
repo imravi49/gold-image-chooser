@@ -18,15 +18,17 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      // TODO: Implement actual authentication
-      // For now, just navigate to hero
-      setTimeout(() => {
+      // Simple client authentication
+      // In production, this would check against database
+      if (username && password) {
         toast({
           title: "Welcome back!",
           description: "You've successfully logged in.",
         });
         navigate("/hero");
-      }, 1000);
+      } else {
+        throw new Error("Please enter credentials");
+      }
     } catch (error) {
       toast({
         title: "Login failed",
@@ -95,9 +97,17 @@ const Login = () => {
           </form>
 
           {/* Footer */}
-          <p className="text-center text-sm text-muted-foreground mt-6">
-            Need help? Contact your photographer
-          </p>
+          <div className="mt-6 space-y-2 text-center">
+            <p className="text-sm text-muted-foreground">
+              Need help? Contact your photographer
+            </p>
+            <button
+              onClick={() => navigate("/admin-login")}
+              className="text-xs text-primary hover:underline"
+            >
+              Admin Login
+            </button>
+          </div>
         </div>
       </div>
     </div>

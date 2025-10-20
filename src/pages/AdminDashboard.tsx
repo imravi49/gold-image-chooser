@@ -118,7 +118,8 @@ const AdminDashboard = () => {
     { icon: Settings, label: "Settings", description: "Site configuration", path: "/admin/settings" },
     { icon: MessageSquare, label: "Feedback", description: "View client feedback", path: "/admin/feedback" },
     { icon: Activity, label: "Activity Logs", description: "Monitor user activity", path: "/admin/logs" },
-    { icon: Phone, label: "Contacts", description: "Manage contact info", path: "/admin/contacts" }
+    { icon: Phone, label: "Contacts", description: "Manage contact info", path: "/admin/contacts" },
+    { icon: Settings, label: "Advanced", description: "Integration settings", path: "/admin/advanced" }
   ];
 
   return (

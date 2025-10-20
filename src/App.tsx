@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
+import AdminLogin from "./pages/AdminLogin";
 import Hero from "./pages/Hero";
 import Gallery from "./pages/Gallery";
 import ReviewSelection from "./pages/ReviewSelection";
@@ -16,6 +17,7 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import AdminFeedback from "./pages/admin/AdminFeedback";
 import AdminLogs from "./pages/admin/AdminLogs";
 import AdminContacts from "./pages/admin/AdminContacts";
+import AdminAdvanced from "./pages/admin/AdminAdvanced";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +30,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Login />} />
+          <Route path="/admin-login" element={<AdminLogin />} />
           <Route path="/hero" element={<Hero />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/review" element={<ReviewSelection />} />
@@ -39,6 +42,7 @@ const App = () => (
           <Route path="/admin/feedback" element={<AdminFeedback />} />
           <Route path="/admin/logs" element={<AdminLogs />} />
           <Route path="/admin/contacts" element={<AdminContacts />} />
+          <Route path="/admin/advanced" element={<AdminAdvanced />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

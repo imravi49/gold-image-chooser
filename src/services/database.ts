@@ -138,6 +138,11 @@ export const db = {
       if (error) throw error;
       return data as Feedback[];
     },
+    create: async (feedback: Partial<Feedback>) => {
+      const { data, error } = await supabase.from('feedback').insert([feedback as any]).select().single();
+      if (error) throw error;
+      return data as Feedback;
+    },
   },
 
   // Activity Logs

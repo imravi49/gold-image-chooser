@@ -5,12 +5,14 @@ import { GoldButton } from "@/components/GoldButton";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { db } from "@/services/database";
 import confetti from "canvas-confetti";
 
 const Finalize = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isFinalized, setIsFinalized] = useState(false);
+  const [showGoogleReview, setShowGoogleReview] = useState(false);
   const [ratings, setRatings] = useState({
     overall: 0,
     experience: 0,
@@ -23,22 +25,51 @@ const Finalize = () => {
   };
 
   const handleFinalize = async () => {
-    // Trigger confetti
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ['#C2994A', '#D4AF37', '#FFD700']
-    });
+    try {
+      // Save feedback to database
+      // Note: In production, get actual user_id from auth
+      const userId = "temp-user-id"; // Replace with actual user ID from auth
+      
+      await db.feedback.create({
+        user_id: userId,
+        overall_rating: ratings.overall,
+        selection_experience: ratings.experience,
+        photo_quality: ratings.quality,
+        comments: comments,
+        is_publishable: true
+      });
 
-    // TODO: Save feedback to backend
-    
-    setIsFinalized(true);
-    
-    toast({
-      title: "Selection Finalized! 🎉",
-      description: "Your photographer has been notified of your selections.",
-    });
+      // Check if all ratings are 5 stars
+      const isPerfectScore = ratings.overall === 5 && 
+                            ratings.experience === 5 && 
+                            ratings.quality === 5;
+
+      if (isPerfectScore) {
+        setShowGoogleReview(true);
+      }
+
+      // Trigger confetti
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#C2994A', '#D4AF37', '#FFD700']
+      });
+      
+      setIsFinalized(true);
+      
+      toast({
+        title: "Selection Finalized! 🎉",
+        description: "Your photographer has been notified of your selections.",
+      });
+    } catch (error) {
+      console.error('Error finalizing:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save feedback. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const RatingStars = ({ 
@@ -89,6 +120,25 @@ const Finalize = () => {
             Your photo selection has been finalized. We've notified your photographer 
             and they'll start working on your beautiful memories.
           </p>
+
+          {/* Google Review Widget - Show if perfect score */}
+          {showGoogleReview && (
+            <div className="bg-card p-6 rounded-xl max-w-md mx-auto">
+              <h2 className="text-xl font-serif gold-text mb-4">
+                Love our service? Share your experience!
+              </h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Your 5-star rating means a lot! Help others discover our work.
+              </p>
+              <GoldButton 
+                onClick={() => window.open('https://g.page/r/YOUR_GOOGLE_PLACE_ID/review', '_blank')}
+                className="w-full"
+              >
+                <Star className="w-4 h-4 mr-2 fill-current" />
+                Leave a Google Review
+              </GoldButton>
+            </div>
+          )}
 
           {/* CTA */}
           <div className="pt-8">
