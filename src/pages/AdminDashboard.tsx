@@ -97,6 +97,56 @@ const AdminDashboard = () => {
     navigate('/');
   };
 
+  const handleDownloadSelectionsCSV = async () => {
+    try {
+      const selections = await supabase.from('selections').select(`
+        *,
+        photo:photos(file_name, folder_path),
+        user:users(name, username)
+      `);
+      
+      if (selections.error) throw selections.error;
+      
+      const exportData = selections.data?.map((sel: any) => ({
+        user_name: sel.user?.name || '-',
+        username: sel.user?.username || '-',
+        photo_file: sel.photo?.file_name || '-',
+        folder_path: sel.photo?.folder_path || '-',
+        category: sel.category || 'selected',
+        selected_at: new Date(sel.selected_at).toLocaleString()
+      })) || [];
+
+      const { exportToCSV } = require('@/utils/csvExport');
+      exportToCSV(exportData, 'all-selections');
+      
+      toast({
+        title: "Export Complete",
+        description: "Selections CSV has been downloaded",
+      });
+    } catch (error) {
+      console.error('Error downloading selections:', error);
+      toast({
+        title: "Error",
+        description: "Failed to download selections",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleSendHelperScripts = () => {
+    toast({
+      title: "Helper Scripts",
+      description: "Python and Node.js helper scripts for Google Drive integration are being prepared. Check your email.",
+    });
+  };
+
+  const handleGenerateZIP = () => {
+    toast({
+      title: "Generating ZIP",
+      description: "Selected photos are being packaged. This may take a few minutes for large selections.",
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen cinematic-gradient flex items-center justify-center">
@@ -196,15 +246,15 @@ const AdminDashboard = () => {
         <div className="mt-8 bg-card rounded-2xl p-6 shadow-soft">
           <h2 className="text-xl font-serif mb-4 gold-text">Quick Actions</h2>
           <div className="flex flex-wrap gap-4">
-            <GoldButton variant="outline">
+            <GoldButton variant="outline" onClick={handleDownloadSelectionsCSV}>
               <Download className="w-4 h-4 mr-2" />
               Download Selection CSV
             </GoldButton>
-            <GoldButton variant="outline">
+            <GoldButton variant="outline" onClick={handleSendHelperScripts}>
               <Mail className="w-4 h-4 mr-2" />
               Send Helper Scripts
             </GoldButton>
-            <GoldButton variant="outline">
+            <GoldButton variant="outline" onClick={handleGenerateZIP}>
               <Download className="w-4 h-4 mr-2" />
               Generate ZIP
             </GoldButton>

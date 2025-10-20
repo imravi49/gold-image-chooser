@@ -32,10 +32,71 @@ const AdminUsers = () => {
   };
 
   const handleDownloadCSV = () => {
+    if (users.length === 0) {
+      toast({
+        title: "No Data",
+        description: "No users available to export",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const exportData = users.map(user => ({
+      username: user.username,
+      name: user.name,
+      contact: user.contact || '-',
+      folder_path: user.folder_path || '-',
+      selection_limit: user.selection_limit,
+      status: user.is_finalized ? 'Finalized' : 'Active',
+      created_at: new Date(user.created_at).toLocaleDateString(),
+      last_login: user.last_login ? new Date(user.last_login).toLocaleString() : '-'
+    }));
+
+    const { exportToCSV } = require('@/utils/csvExport');
+    exportToCSV(exportData, 'users');
+    
     toast({
-      title: "Download Started",
-      description: "Selection CSV is being prepared",
+      title: "Export Complete",
+      description: "Users CSV has been downloaded",
     });
+  };
+
+  const handleResetUser = async (userId: string) => {
+    try {
+      await db.users.update(userId, { is_finalized: false });
+      toast({
+        title: "Success",
+        description: "User has been reset and can select photos again",
+      });
+      fetchUsers();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to reset user",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      await db.users.delete(userId);
+      toast({
+        title: "Success",
+        description: "User has been deleted",
+      });
+      fetchUsers();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete user",
+        variant: "destructive"
+      });
+    }
   };
 
   if (loading) {
@@ -106,13 +167,25 @@ const AdminUsers = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button className="p-2 hover:bg-muted rounded-lg transition-colors">
+                        <button 
+                          onClick={() => handleResetUser(user.id)}
+                          className="p-2 hover:bg-muted rounded-lg transition-colors"
+                          title="Reset finalization"
+                        >
                           <RefreshCw className="w-4 h-4 text-primary" />
                         </button>
-                        <button className="p-2 hover:bg-muted rounded-lg transition-colors">
+                        <button 
+                          onClick={() => navigate(`/admin/users/${user.id}/edit`)}
+                          className="p-2 hover:bg-muted rounded-lg transition-colors"
+                          title="Edit user"
+                        >
                           <Edit className="w-4 h-4 text-primary" />
                         </button>
-                        <button className="p-2 hover:bg-destructive/10 rounded-lg transition-colors">
+                        <button 
+                          onClick={() => handleDeleteUser(user.id, user.name)}
+                          className="p-2 hover:bg-destructive/10 rounded-lg transition-colors"
+                          title="Delete user"
+                        >
                           <Trash2 className="w-4 h-4 text-destructive" />
                         </button>
                       </div>

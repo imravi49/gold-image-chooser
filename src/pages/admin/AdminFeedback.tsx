@@ -32,9 +32,30 @@ const AdminFeedback = () => {
   };
 
   const handleExportCSV = () => {
+    if (feedbacks.length === 0) {
+      toast({
+        title: "No Data",
+        description: "No feedback available to export",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const exportData = feedbacks.map(feedback => ({
+      date: new Date(feedback.created_at).toLocaleDateString(),
+      overall_rating: feedback.overall_rating || 0,
+      selection_experience: feedback.selection_experience || 0,
+      photo_quality: feedback.photo_quality || 0,
+      comments: feedback.comments || '',
+      publishable: feedback.is_publishable ? 'Yes' : 'No'
+    }));
+
+    const { exportToCSV } = require('@/utils/csvExport');
+    exportToCSV(exportData, 'client-feedback');
+    
     toast({
-      title: "Export Started",
-      description: "Feedback CSV is being prepared",
+      title: "Export Complete",
+      description: "Feedback CSV has been downloaded",
     });
   };
 

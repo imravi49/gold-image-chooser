@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useDesign } from "@/hooks/useDesign";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import AdminLogin from "./pages/AdminLogin";
@@ -22,31 +23,38 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+const AppContent = () => {
+  useDesign(); // Load and apply design settings
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/hero" element={<Hero />} />
+        <Route path="/gallery" element={<Gallery />} />
+        <Route path="/review" element={<ReviewSelection />} />
+        <Route path="/finalize" element={<Finalize />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/admin/design" element={<AdminDesign />} />
+        <Route path="/admin/settings" element={<AdminSettings />} />
+        <Route path="/admin/feedback" element={<AdminFeedback />} />
+        <Route path="/admin/logs" element={<AdminLogs />} />
+        <Route path="/admin/contacts" element={<AdminContacts />} />
+        <Route path="/admin/advanced" element={<AdminAdvanced />} />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/admin-login" element={<AdminLogin />} />
-          <Route path="/hero" element={<Hero />} />
-          <Route path="/gallery" element={<Gallery />} />
-          <Route path="/review" element={<ReviewSelection />} />
-          <Route path="/finalize" element={<Finalize />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/users" element={<AdminUsers />} />
-          <Route path="/admin/design" element={<AdminDesign />} />
-          <Route path="/admin/settings" element={<AdminSettings />} />
-          <Route path="/admin/feedback" element={<AdminFeedback />} />
-          <Route path="/admin/logs" element={<AdminLogs />} />
-          <Route path="/admin/contacts" element={<AdminContacts />} />
-          <Route path="/admin/advanced" element={<AdminAdvanced />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <AppContent />
     </TooltipProvider>
   </QueryClientProvider>
 );

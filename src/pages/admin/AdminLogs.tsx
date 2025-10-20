@@ -32,10 +32,37 @@ const AdminLogs = () => {
     }
   };
 
+  const filteredLogs = logs.filter(log => {
+    if (filterType === 'all') return true;
+    if (filterType === 'user') return log.action.toLowerCase().includes('select') || log.action.toLowerCase().includes('login');
+    if (filterType === 'admin') return log.action.toLowerCase().includes('admin') || log.action.toLowerCase().includes('setting');
+    return true;
+  });
+
   const handleExportCSV = () => {
+    if (filteredLogs.length === 0) {
+      toast({
+        title: "No Data",
+        description: "No logs available to export",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const exportData = filteredLogs.map(log => ({
+      timestamp: new Date(log.created_at).toLocaleString(),
+      action: log.action,
+      user_id: log.user_id || 'System',
+      ip_address: log.ip_address || '-',
+      details: log.details ? JSON.stringify(log.details) : '-'
+    }));
+
+    const { exportToCSV } = require('@/utils/csvExport');
+    exportToCSV(exportData, 'activity-logs');
+    
     toast({
-      title: "Export Started",
-      description: "Activity logs CSV is being prepared",
+      title: "Export Complete",
+      description: "Activity logs CSV has been downloaded",
     });
   };
 
@@ -103,7 +130,7 @@ const AdminLogs = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {logs.map((log) => (
+                {filteredLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-muted/20 transition-colors">
                     <td className="px-6 py-4 text-sm text-muted-foreground">
                       {new Date(log.created_at).toLocaleString()}
@@ -126,7 +153,7 @@ const AdminLogs = () => {
             </table>
           </div>
 
-          {logs.length === 0 && (
+          {filteredLogs.length === 0 && (
             <div className="text-center py-12">
               <Activity className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No activity logs found</p>
