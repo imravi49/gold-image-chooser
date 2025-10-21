@@ -4,6 +4,7 @@ import { Palette, Upload, Save } from "lucide-react";
 import { GoldButton } from "@/components/GoldButton";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/services/database";
+import { supabase } from "@/integrations/supabase/client";
 
 const AdminDesign = () => {
   const navigate = useNavigate();
@@ -31,26 +32,61 @@ const AdminDesign = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    try {
-      // Convert to base64 for storage
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = reader.result as string;
-        setLogoUrl(base64String);
-        
-        // Save to database
-        await db.adminSettings.set('logo_url', { url: base64String });
-        
-        toast({
-          title: "Logo Uploaded",
-          description: "Logo has been saved successfully",
-        });
-      };
-      reader.readAsDataURL(file);
-    } catch (error) {
+    // Validate file type and size
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/svg+xml'];
+    if (!validTypes.includes(file.type)) {
       toast({
         title: "Error",
-        description: "Failed to upload logo",
+        description: "Please upload a valid image file (PNG, JPG, WEBP, or SVG)",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) { // 2MB
+      toast({
+        title: "Error",
+        description: "Image must be less than 2MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Upload to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `logo-${Date.now()}.${fileExt}`;
+      const filePath = fileName;
+
+      const { error: uploadError } = await supabase.storage
+        .from('logos')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('logos')
+        .getPublicUrl(filePath);
+
+      // Save URL to admin settings
+      await db.adminSettings.set('logo_url', publicUrl);
+      setLogoUrl(publicUrl);
+
+      toast({
+        title: "Success",
+        description: "Logo uploaded successfully"
+      });
+    } catch (error: any) {
+      console.error('Logo upload error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upload logo",
         variant: "destructive"
       });
     }

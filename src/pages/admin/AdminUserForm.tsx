@@ -6,6 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/services/database";
+import { supabase } from "@/integrations/supabase/client";
+import { z } from "zod";
+
+const userSchema = z.object({
+  username: z.string().trim().min(3, "Username must be at least 3 characters").max(50, "Username must be less than 50 characters").regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, hyphens, and underscores"),
+  name: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
+  contact: z.string().trim().max(255, "Contact must be less than 255 characters").optional(),
+  folder_path: z.string().trim().max(500, "Folder path must be less than 500 characters").optional(),
+  selection_limit: z.number().int().min(1, "Must be at least 1").max(10000, "Must be less than 10,000"),
+  password: z.string().min(8, "Password must be at least 8 characters").optional().or(z.literal('')),
+});
 
 const AdminUserForm = () => {
   const navigate = useNavigate();
@@ -51,59 +62,78 @@ const AdminUserForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate input
+    const validation = userSchema.safeParse({
+      ...formData,
+      password: formData.password || undefined,
+    });
+
+    if (!validation.success) {
+      const firstError = validation.error.issues[0];
+      toast({
+        title: "Validation Error",
+        description: firstError.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      if (userId) {
-        // Update existing user
-        const updateData: any = {
-          username: formData.username,
-          name: formData.name,
-          contact: formData.contact,
-          folder_path: formData.folder_path,
-          selection_limit: formData.selection_limit
-        };
-
-        // Only update password if provided
-        if (formData.password) {
-          // Hash password (in production, use proper bcrypt)
-          updateData.password_hash = formData.password;
-        }
-
-        await db.users.update(userId, updateData);
-        
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
         toast({
-          title: "Success",
-          description: "User updated successfully",
+          title: "Error",
+          description: "You must be logged in to perform this action",
+          variant: "destructive"
         });
-      } else {
-        // Create new user
-        if (!formData.password) {
-          toast({
-            title: "Error",
-            description: "Password is required for new users",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        await db.users.create({
-          username: formData.username,
-          name: formData.name,
-          password_hash: formData.password,
-          contact: formData.contact,
-          folder_path: formData.folder_path,
-          selection_limit: formData.selection_limit
-        } as any);
-        
-        toast({
-          title: "Success",
-          description: "User created successfully",
-        });
+        return;
       }
+
+      const action = userId ? 'update' : 'create';
+      
+      if (action === 'create' && !formData.password) {
+        toast({
+          title: "Error",
+          description: "Password is required for new users",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const response = await supabase.functions.invoke('admin-user-management', {
+        body: {
+          action,
+          userId,
+          userData: {
+            username: formData.username,
+            name: formData.name,
+            contact: formData.contact || undefined,
+            folder_path: formData.folder_path || undefined,
+            selection_limit: formData.selection_limit,
+            password: formData.password || undefined,
+          },
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to save user');
+      }
+
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
+
+      toast({
+        title: "Success",
+        description: userId ? "User updated successfully" : "User created successfully",
+      });
 
       navigate('/admin/users');
     } catch (error: any) {
+      console.error('User save error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to save user",
@@ -201,10 +231,13 @@ const AdminUserForm = () => {
               id="selection_limit"
               type="number"
               value={formData.selection_limit}
-              onChange={(e) => setFormData({ ...formData, selection_limit: parseInt(e.target.value) })}
+              onChange={(e) => setFormData({ ...formData, selection_limit: parseInt(e.target.value) || 0 })}
               min="1"
-              max="1000"
+              max="10000"
             />
+            <p className="text-xs text-muted-foreground">
+              Maximum number of photos this user can select (1-10,000)
+            </p>
           </div>
         </form>
       </div>

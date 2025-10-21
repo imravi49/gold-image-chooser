@@ -4,6 +4,7 @@ import { Users, Plus, Edit, Trash2, Download, RefreshCw } from "lucide-react";
 import { GoldButton } from "@/components/GoldButton";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/services/database";
+import { supabase } from "@/integrations/supabase/client";
 
 const AdminUsers = () => {
   const navigate = useNavigate();
@@ -78,22 +79,43 @@ const AdminUsers = () => {
     }
   };
 
-  const handleDeleteUser = async (userId: string, userName: string) => {
-    if (!confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
+  const handleDeleteUser = async (userId: string, username: string) => {
+    if (!confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) {
       return;
     }
-    
+
     try {
-      await db.users.delete(userId);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Error",
+          description: "You must be logged in",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const response = await supabase.functions.invoke('admin-user-management', {
+        body: {
+          action: 'delete',
+          userId,
+        },
+      });
+
+      if (response.error || response.data?.error) {
+        throw new Error(response.data?.error || response.error.message);
+      }
+
       toast({
         title: "Success",
-        description: "User has been deleted",
+        description: "User deleted successfully",
       });
       fetchUsers();
-    } catch (error) {
+    } catch (error: any) {
+      console.error('User deletion error:', error);
       toast({
         title: "Error",
-        description: "Failed to delete user",
+        description: error.message || "Failed to delete user",
         variant: "destructive"
       });
     }
@@ -182,7 +204,7 @@ const AdminUsers = () => {
                           <Edit className="w-4 h-4 text-primary" />
                         </button>
                         <button 
-                          onClick={() => handleDeleteUser(user.id, user.name)}
+                          onClick={() => handleDeleteUser(user.id, user.username)}
                           className="p-2 hover:bg-destructive/10 rounded-lg transition-colors"
                           title="Delete user"
                         >

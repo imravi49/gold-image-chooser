@@ -133,7 +133,7 @@ const AdminSettings = () => {
           </h2>
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium mb-2">Root Folder ID</label>
+              <label className="block text-sm font-medium mb-2">Google Drive Root Folder ID</label>
               <input
                 type="text"
                 value={driveRootFolderId}
@@ -141,7 +141,9 @@ const AdminSettings = () => {
                 placeholder="Enter Google Drive folder ID"
                 className="w-full px-3 py-2 bg-background border border-border rounded-lg"
               />
-              <p className="text-xs text-muted-foreground mt-1">The main folder containing all client photo folders</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                If this folder belongs to another Google account, share it with the Google account connected to this app (via OAuth) to enable access.
+              </p>
             </div>
 
             <div className="flex items-center justify-between">
