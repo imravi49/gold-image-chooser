@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GoldButton } from "@/components/GoldButton";
 import { MobileViewer } from "@/components/MobileViewer";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/services/database";
 import { useToast } from "@/hooks/use-toast";
 
 interface Photo {
@@ -33,12 +33,7 @@ const Gallery = () => {
 
   const fetchPhotos = async () => {
     try {
-      const { data, error } = await supabase
-        .from('photos')
-        .select('*')
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
+      const data = await db.photos.getAll();
       setPhotos(data || []);
     } catch (error) {
       console.error('Error fetching photos:', error);
@@ -54,15 +49,10 @@ const Gallery = () => {
 
   const fetchSelections = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await db.auth.getCurrentUser();
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from('selections')
-        .select('photo_id, category')
-        .eq('user_id', user.id);
-
-      if (error) throw error;
+      const data = await db.selections.getByUser(user.uid);
 
       const selected = new Set(
         data?.filter(s => s.category === 'selected').map(s => s.photo_id) || []
@@ -80,16 +70,16 @@ const Gallery = () => {
 
   const handleSelect = async (photoId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await db.auth.getCurrentUser();
       if (!user) return;
 
       if (selectedPhotos.has(photoId)) {
-        // Unselect
-        await supabase
-          .from('selections')
-          .delete()
-          .eq('photo_id', photoId)
-          .eq('user_id', user.id);
+        // Unselect - find and delete the selection
+        const selections = await db.selections.getByUser(user.uid);
+        const selection = selections.find(s => s.photo_id === photoId);
+        if (selection) {
+          await db.selections.delete(selection.id);
+        }
 
         setSelectedPhotos(prev => {
           const newSet = new Set(prev);
@@ -108,13 +98,11 @@ const Gallery = () => {
         }
 
         // Add selection
-        await supabase
-          .from('selections')
-          .upsert({
-            user_id: user.id,
-            photo_id: photoId,
-            category: 'selected'
-          });
+        await db.selections.create({
+          user_id: user.uid,
+          photo_id: photoId,
+          category: 'selected'
+        });
 
         setSelectedPhotos(prev => new Set(prev).add(photoId));
         setLaterPhotos(prev => {
@@ -124,8 +112,8 @@ const Gallery = () => {
         });
 
         // Log activity
-        await supabase.from('activity_logs').insert({
-          user_id: user.id,
+        await db.logs.create({
+          user_id: user.uid,
           action: 'photo_selected',
           details: { photo_id: photoId }
         });
@@ -142,16 +130,16 @@ const Gallery = () => {
 
   const handleLater = async (photoId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await db.auth.getCurrentUser();
       if (!user) return;
 
       if (laterPhotos.has(photoId)) {
         // Remove from later
-        await supabase
-          .from('selections')
-          .delete()
-          .eq('photo_id', photoId)
-          .eq('user_id', user.id);
+        const selections = await db.selections.getByUser(user.uid);
+        const selection = selections.find(s => s.photo_id === photoId);
+        if (selection) {
+          await db.selections.delete(selection.id);
+        }
 
         setLaterPhotos(prev => {
           const newSet = new Set(prev);
@@ -160,13 +148,11 @@ const Gallery = () => {
         });
       } else {
         // Add to later
-        await supabase
-          .from('selections')
-          .upsert({
-            user_id: user.id,
-            photo_id: photoId,
-            category: 'later'
-          });
+        await db.selections.create({
+          user_id: user.uid,
+          photo_id: photoId,
+          category: 'later'
+        });
 
         setLaterPhotos(prev => new Set(prev).add(photoId));
         setSelectedPhotos(prev => {

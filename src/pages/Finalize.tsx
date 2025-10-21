@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/services/database";
-import { supabase } from "@/integrations/supabase/client";
+
 import confetti from "canvas-confetti";
 
 const Finalize = () => {
@@ -27,7 +27,7 @@ const Finalize = () => {
 
   const handleFinalize = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await db.auth.getCurrentUser();
       if (!user) {
         toast({
           title: "Error",
@@ -38,7 +38,7 @@ const Finalize = () => {
       }
       
       await db.feedback.create({
-        user_id: user.id,
+        user_id: user.uid,
         overall_rating: ratings.overall,
         selection_experience: ratings.experience,
         photo_quality: ratings.quality,

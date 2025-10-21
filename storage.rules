@@ -1,0 +1,28 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return firestore.exists(/databases/(default)/documents/user_roles/$(request.auth.uid)) &&
+             firestore.get(/databases/(default)/documents/user_roles/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Logos bucket - admin only
+    match /logos/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    
+    // Photos bucket - admin only for write, authenticated for read
+    match /photos/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    
+    // User uploads - users can only access their own folder
+    match /user-uploads/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

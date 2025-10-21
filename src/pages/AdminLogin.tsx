@@ -5,7 +5,7 @@ import { GoldButton } from "@/components/GoldButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { auth, db } from "@/services/database";
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
@@ -20,17 +20,14 @@ const AdminLogin = () => {
   }, []);
 
   const checkSession = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await db.auth.getCurrentUser();
     if (user) {
-      // Check if user is admin
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
-
-      if (roleData) {
+      // Check if user is admin from Firestore user_roles collection
+      const { getFirestore, doc, getDoc } = await import('firebase/firestore');
+      const firestore = getFirestore();
+      const roleDoc = await getDoc(doc(firestore, 'user_roles', user.uid));
+      
+      if (roleDoc.exists() && roleDoc.data().role === 'admin') {
         navigate('/admin');
       }
     }
@@ -41,23 +38,15 @@ const AdminLogin = () => {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
+      const user = await db.auth.signIn(email, password);
 
       // Check if user has admin role
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', data.user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
+      const { getFirestore, doc, getDoc } = await import('firebase/firestore');
+      const firestore = getFirestore();
+      const roleDoc = await getDoc(doc(firestore, 'user_roles', user.uid));
 
-      if (!roleData) {
-        await supabase.auth.signOut();
+      if (!roleDoc.exists() || roleDoc.data().role !== 'admin') {
+        await db.auth.signOut();
         throw new Error("Access denied: Admin privileges required");
       }
 
@@ -80,18 +69,23 @@ const AdminLogin = () => {
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/admin`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          }
+      const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      
+      // After Google login, check admin role
+      const user = await db.auth.getCurrentUser();
+      if (user) {
+        const { getFirestore, doc, getDoc } = await import('firebase/firestore');
+        const firestore = getFirestore();
+        const roleDoc = await getDoc(doc(firestore, 'user_roles', user.uid));
+        
+        if (!roleDoc.exists() || roleDoc.data().role !== 'admin') {
+          await db.auth.signOut();
+          throw new Error("Access denied: Admin privileges required");
         }
-      });
-
-      if (error) throw error;
+        navigate('/admin');
+      }
     } catch (error: any) {
       toast({
         title: "Google login failed",

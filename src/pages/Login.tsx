@@ -5,7 +5,7 @@ import { GoldButton } from "@/components/GoldButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { auth, db } from "@/services/database";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -20,7 +20,7 @@ const Login = () => {
   }, []);
 
   const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await db.auth.getCurrentUser();
     if (user) {
       navigate("/hero");
     }
@@ -31,38 +31,8 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      // First, check if user exists in users table
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id, username')
-        .eq('username', username)
-        .maybeSingle();
-
-      if (userError || !userData) {
-        throw new Error("Invalid username or password");
-      }
-
-      // Sign in with Supabase Auth using username as email
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: `${username}@gallery.app`,
-        password: password,
-      });
-
-      if (error) {
-        // Try to create account if doesn't exist
-        const { error: signUpError } = await supabase.auth.signUp({
-          email: `${username}@gallery.app`,
-          password: password,
-          options: {
-            data: {
-              username: username,
-              user_table_id: userData.id
-            }
-          }
-        });
-
-        if (signUpError) throw signUpError;
-      }
+      // Sign in using username and password
+      await db.auth.signIn(`${username}@gallery.app`, password);
 
       toast({
         title: "Welcome back!",

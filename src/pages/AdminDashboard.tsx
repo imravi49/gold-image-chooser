@@ -11,7 +11,7 @@ import {
   Download,
   Mail
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { auth, db } from "@/services/database";
 import { useToast } from "@/hooks/use-toast";
 import { GoldButton } from "@/components/GoldButton";
 
@@ -33,7 +33,7 @@ const AdminDashboard = () => {
 
   const checkAdminAccess = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await db.auth.getCurrentUser();
       
       if (!user) {
         navigate('/');
@@ -41,14 +41,11 @@ const AdminDashboard = () => {
       }
 
       // Check if user has admin role
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
+      const { getFirestore, doc, getDoc } = await import('firebase/firestore');
+      const firestore = getFirestore();
+      const roleDoc = await getDoc(doc(firestore, 'user_roles', user.uid));
 
-      if (!roleData) {
+      if (!roleDoc.exists() || roleDoc.data().role !== 'admin') {
         toast({
           title: "Access Denied",
           description: "You don't have admin privileges",
@@ -70,22 +67,19 @@ const AdminDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const [usersRes, selectionsRes, feedbacksRes] = await Promise.all([
-        supabase.from('users').select('*', { count: 'exact', head: true }),
-        supabase.from('selections').select('*', { count: 'exact', head: true }),
-        supabase.from('feedback').select('*', { count: 'exact', head: true })
+      const [users, selections, feedbacks] = await Promise.all([
+        db.users.getAll(),
+        db.selections.getByUser(''), // Get all
+        db.feedback.getAll()
       ]);
 
-      const { data: finalizedUsers } = await supabase
-        .from('users')
-        .select('id')
-        .eq('is_finalized', true);
+      const finalizedUsers = users.filter(u => u.is_finalized);
 
       setStats({
-        totalUsers: usersRes.count || 0,
-        totalSelections: selectionsRes.count || 0,
-        totalFeedbacks: feedbacksRes.count || 0,
-        finalized: finalizedUsers?.length || 0
+        totalUsers: users.length || 0,
+        totalSelections: selections.length || 0,
+        totalFeedbacks: feedbacks.length || 0,
+        finalized: finalizedUsers.length || 0
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -93,28 +87,31 @@ const AdminDashboard = () => {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await db.auth.signOut();
     navigate('/');
   };
 
   const handleDownloadSelectionsCSV = async () => {
     try {
-      const selections = await supabase.from('selections').select(`
-        *,
-        photo:photos(file_name, folder_path),
-        user:users(name, username)
-      `);
+      const selections = await db.selections.getByUser(''); // Get all
+      const users = await db.users.getAll();
+      const photos = await db.photos.getAll();
       
-      if (selections.error) throw selections.error;
+      const usersMap = new Map(users.map(u => [u.id, u]));
+      const photosMap = new Map(photos.map(p => [p.id, p]));
       
-      const exportData = selections.data?.map((sel: any) => ({
-        user_name: sel.user?.name || '-',
-        username: sel.user?.username || '-',
-        photo_file: sel.photo?.file_name || '-',
-        folder_path: sel.photo?.folder_path || '-',
-        category: sel.category || 'selected',
-        selected_at: new Date(sel.selected_at).toLocaleString()
-      })) || [];
+      const exportData = selections.map((sel: any) => {
+        const user = usersMap.get(sel.user_id);
+        const photo = photosMap.get(sel.photo_id);
+        return {
+          user_name: user?.name || '-',
+          username: user?.username || '-',
+          photo_file: photo?.file_name || '-',
+          folder_path: photo?.folder_path || '-',
+          category: sel.category || 'selected',
+          selected_at: sel.selected_at ? new Date(sel.selected_at).toLocaleString() : '-'
+        };
+      });
 
       const { exportToCSV } = require('@/utils/csvExport');
       exportToCSV(exportData, 'all-selections');
@@ -237,12 +234,12 @@ downloadPhotos('YOUR_FOLDER_ID', './photos');
   const handleGenerateZIP = async () => {
     try {
       // Get all selections with photos
-      const { data: selections } = await supabase
-        .from('selections')
-        .select('photo_id, photos(file_name, full_url)')
-        .eq('category', 'selected');
+      const selections = await db.selections.getByUser(''); // Get all
+      const selectedOnes = selections.filter(s => s.category === 'selected');
+      const photos = await db.photos.getAll();
+      const photosMap = new Map(photos.map(p => [p.id, p]));
 
-      if (!selections || selections.length === 0) {
+      if (selectedOnes.length === 0) {
         toast({
           title: "No Selections",
           description: "No photos have been selected yet",
@@ -253,7 +250,7 @@ downloadPhotos('YOUR_FOLDER_ID', './photos');
 
       toast({
         title: "Generating ZIP",
-        description: `Preparing ${selections.length} photos for download. This may take a few minutes...`,
+        description: `Preparing ${selectedOnes.length} photos for download. This may take a few minutes...`,
       });
 
       // Note: For production, implement server-side ZIP generation

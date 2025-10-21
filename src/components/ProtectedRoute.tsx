@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/services/database';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -18,7 +18,7 @@ export const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRout
 
   const checkAuth = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await db.auth.getCurrentUser();
       
       if (!user) {
         navigate(requireAdmin ? '/admin-login' : '/');
@@ -27,14 +27,11 @@ export const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRout
 
       if (requireAdmin) {
         // Check if user has admin role
-        const { data: roleData } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .eq('role', 'admin')
-          .maybeSingle();
+        const { getFirestore, doc, getDoc } = await import('firebase/firestore');
+        const firestore = getFirestore();
+        const roleDoc = await getDoc(doc(firestore, 'user_roles', user.uid));
 
-        if (!roleData) {
+        if (!roleDoc.exists() || roleDoc.data().role !== 'admin') {
           navigate('/');
           return;
         }

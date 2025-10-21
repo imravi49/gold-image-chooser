@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, Clock, X, Download } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/services/database";
 import { useToast } from "@/hooks/use-toast";
 import { GoldButton } from "@/components/GoldButton";
 
@@ -33,15 +33,19 @@ const ReviewSelection = () => {
 
   const fetchSelections = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await db.auth.getCurrentUser();
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from('selections')
-        .select('photo_id, category, photos(*)')
-        .eq('user_id', user.id);
-
-      if (error) throw error;
+      // Get selections with photo data
+      const selections = await db.selections.getByUser(user.uid);
+      const photoIds = selections.map(s => s.photo_id);
+      const allPhotos = await db.photos.getAll();
+      const photosMap = new Map(allPhotos.map(p => [p.id, p]));
+      
+      const data = selections.map(sel => ({
+        ...sel,
+        photos: photosMap.get(sel.photo_id)
+      })).filter(sel => sel.photos);
 
       const selected = data?.filter(s => s.category === 'selected') || [];
       const later = data?.filter(s => s.category === 'later') || [];
@@ -62,16 +66,20 @@ const ReviewSelection = () => {
 
   const moveToSelected = async (photoId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await db.auth.getCurrentUser();
       if (!user) return;
 
-      const { error } = await supabase
-        .from('selections')
-        .update({ category: 'selected' })
-        .eq('photo_id', photoId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
+      // Find the selection and update it
+      const selections = await db.selections.getByUser(user.uid);
+      const selection = selections.find(s => s.photo_id === photoId);
+      if (selection) {
+        await db.selections.delete(selection.id);
+        await db.selections.create({
+          user_id: user.uid,
+          photo_id: photoId,
+          category: 'selected'
+        });
+      }
 
       await fetchSelections();
       
@@ -86,16 +94,14 @@ const ReviewSelection = () => {
 
   const removeSelection = async (photoId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await db.auth.getCurrentUser();
       if (!user) return;
 
-      const { error } = await supabase
-        .from('selections')
-        .delete()
-        .eq('photo_id', photoId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
+      const selections = await db.selections.getByUser(user.uid);
+      const selection = selections.find(s => s.photo_id === photoId);
+      if (selection) {
+        await db.selections.delete(selection.id);
+      }
 
       await fetchSelections();
       
