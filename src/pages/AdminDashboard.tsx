@@ -133,18 +133,144 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleSendHelperScripts = () => {
-    toast({
-      title: "Helper Scripts",
-      description: "Python and Node.js helper scripts for Google Drive integration are being prepared. Check your email.",
-    });
+  const handleSendHelperScripts = async () => {
+    try {
+      // Generate helper scripts content
+      const pythonScript = `#!/usr/bin/env python3
+"""
+Google Drive Photo Sync Helper
+Syncs photos from Google Drive to local storage
+"""
+import os
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+
+# Configure your credentials here
+SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+SERVICE_ACCOUNT_FILE = 'credentials.json'
+
+def download_photos(folder_id, destination):
+    creds = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    service = build('drive', 'v3', credentials=creds)
+    
+    # List files in folder
+    results = service.files().list(
+        q=f"'{folder_id}' in parents",
+        fields="files(id, name, mimeType)").execute()
+    
+    files = results.get('files', [])
+    for file in files:
+        if file['mimeType'].startswith('image/'):
+            print(f"Downloading {file['name']}...")
+            # Add download logic here
+
+if __name__ == '__main__':
+    download_photos('YOUR_FOLDER_ID', './photos')
+`;
+
+      const nodeScript = `// Node.js Google Drive Sync Helper
+const { google } = require('googleapis');
+const fs = require('fs');
+const path = require('path');
+
+// Configure your credentials
+const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
+const KEY_FILE_PATH = './credentials.json';
+
+async function downloadPhotos(folderId, destination) {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: KEY_FILE_PATH,
+    scopes: SCOPES,
+  });
+  
+  const drive = google.drive({ version: 'v3', auth });
+  
+  const res = await drive.files.list({
+    q: \`'\${folderId}' in parents\`,
+    fields: 'files(id, name, mimeType)',
+  });
+  
+  const files = res.data.files || [];
+  for (const file of files) {
+    if (file.mimeType?.startsWith('image/')) {
+      console.log(\`Downloading \${file.name}...\`);
+      // Add download logic here
+    }
+  }
+}
+
+downloadPhotos('YOUR_FOLDER_ID', './photos');
+`;
+
+      // Create downloadable files
+      const scripts = [
+        { name: 'drive-sync.py', content: pythonScript },
+        { name: 'drive-sync.js', content: nodeScript }
+      ];
+
+      scripts.forEach(script => {
+        const blob = new Blob([script.content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = script.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+
+      toast({
+        title: "Scripts Downloaded",
+        description: "Helper scripts have been downloaded to your computer.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate helper scripts",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleGenerateZIP = () => {
-    toast({
-      title: "Generating ZIP",
-      description: "Selected photos are being packaged. This may take a few minutes for large selections.",
-    });
+  const handleGenerateZIP = async () => {
+    try {
+      // Get all selections with photos
+      const { data: selections } = await supabase
+        .from('selections')
+        .select('photo_id, photos(file_name, full_url)')
+        .eq('category', 'selected');
+
+      if (!selections || selections.length === 0) {
+        toast({
+          title: "No Selections",
+          description: "No photos have been selected yet",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Generating ZIP",
+        description: `Preparing ${selections.length} photos for download. This may take a few minutes...`,
+      });
+
+      // Note: For production, implement server-side ZIP generation
+      // This is a placeholder for the actual ZIP generation logic
+      setTimeout(() => {
+        toast({
+          title: "ZIP Ready",
+          description: "In production, this would download a ZIP file with all selected photos.",
+        });
+      }, 2000);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate ZIP",
+        variant: "destructive"
+      });
+    }
   };
 
   if (loading) {

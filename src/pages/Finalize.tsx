@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/services/database";
+import { supabase } from "@/integrations/supabase/client";
 import confetti from "canvas-confetti";
 
 const Finalize = () => {
@@ -26,12 +27,18 @@ const Finalize = () => {
 
   const handleFinalize = async () => {
     try {
-      // Save feedback to database
-      // Note: In production, get actual user_id from auth
-      const userId = "temp-user-id"; // Replace with actual user ID from auth
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to finalize",
+          variant: "destructive"
+        });
+        return;
+      }
       
       await db.feedback.create({
-        user_id: userId,
+        user_id: user.id,
         overall_rating: ratings.overall,
         selection_experience: ratings.experience,
         photo_quality: ratings.quality,

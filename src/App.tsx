@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useDesign } from "@/hooks/useDesign";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import AdminLogin from "./pages/AdminLogin";
@@ -13,6 +14,7 @@ import ReviewSelection from "./pages/ReviewSelection";
 import Finalize from "./pages/Finalize";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
+import AdminUserForm from "./pages/admin/AdminUserForm";
 import AdminDesign from "./pages/admin/AdminDesign";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminFeedback from "./pages/admin/AdminFeedback";
@@ -30,18 +32,20 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/admin-login" element={<AdminLogin />} />
-        <Route path="/hero" element={<Hero />} />
-        <Route path="/gallery" element={<Gallery />} />
-        <Route path="/review" element={<ReviewSelection />} />
-        <Route path="/finalize" element={<Finalize />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin/users" element={<AdminUsers />} />
-        <Route path="/admin/design" element={<AdminDesign />} />
-        <Route path="/admin/settings" element={<AdminSettings />} />
-        <Route path="/admin/feedback" element={<AdminFeedback />} />
-        <Route path="/admin/logs" element={<AdminLogs />} />
-        <Route path="/admin/contacts" element={<AdminContacts />} />
-        <Route path="/admin/advanced" element={<AdminAdvanced />} />
+        <Route path="/hero" element={<ProtectedRoute><Hero /></ProtectedRoute>} />
+        <Route path="/gallery" element={<ProtectedRoute><Gallery /></ProtectedRoute>} />
+        <Route path="/review" element={<ProtectedRoute><ReviewSelection /></ProtectedRoute>} />
+        <Route path="/finalize" element={<ProtectedRoute><Finalize /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/users" element={<ProtectedRoute requireAdmin><AdminUsers /></ProtectedRoute>} />
+        <Route path="/admin/users/new" element={<ProtectedRoute requireAdmin><AdminUserForm /></ProtectedRoute>} />
+        <Route path="/admin/users/:userId/edit" element={<ProtectedRoute requireAdmin><AdminUserForm /></ProtectedRoute>} />
+        <Route path="/admin/design" element={<ProtectedRoute requireAdmin><AdminDesign /></ProtectedRoute>} />
+        <Route path="/admin/settings" element={<ProtectedRoute requireAdmin><AdminSettings /></ProtectedRoute>} />
+        <Route path="/admin/feedback" element={<ProtectedRoute requireAdmin><AdminFeedback /></ProtectedRoute>} />
+        <Route path="/admin/logs" element={<ProtectedRoute requireAdmin><AdminLogs /></ProtectedRoute>} />
+        <Route path="/admin/contacts" element={<ProtectedRoute requireAdmin><AdminContacts /></ProtectedRoute>} />
+        <Route path="/admin/advanced" element={<ProtectedRoute requireAdmin><AdminAdvanced /></ProtectedRoute>} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>

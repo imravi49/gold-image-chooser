@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Camera } from "lucide-react";
 import { GoldButton } from "@/components/GoldButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -13,26 +14,66 @@ const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  useEffect(() => {
+    // Check if already logged in
+    checkUser();
+  }, []);
+
+  const checkUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      navigate("/hero");
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Simple client authentication
-      // In production, this would check against database
-      if (username && password) {
-        toast({
-          title: "Welcome back!",
-          description: "You've successfully logged in.",
-        });
-        navigate("/hero");
-      } else {
-        throw new Error("Please enter credentials");
+      // First, check if user exists in users table
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id, username')
+        .eq('username', username)
+        .maybeSingle();
+
+      if (userError || !userData) {
+        throw new Error("Invalid username or password");
       }
-    } catch (error) {
+
+      // Sign in with Supabase Auth using username as email
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: `${username}@gallery.app`,
+        password: password,
+      });
+
+      if (error) {
+        // Try to create account if doesn't exist
+        const { error: signUpError } = await supabase.auth.signUp({
+          email: `${username}@gallery.app`,
+          password: password,
+          options: {
+            data: {
+              username: username,
+              user_table_id: userData.id
+            }
+          }
+        });
+
+        if (signUpError) throw signUpError;
+      }
+
+      toast({
+        title: "Welcome back!",
+        description: "You've successfully logged in.",
+      });
+      
+      navigate("/hero");
+    } catch (error: any) {
       toast({
         title: "Login failed",
-        description: "Please check your credentials and try again.",
+        description: error.message || "Please check your credentials and try again.",
         variant: "destructive",
       });
     } finally {

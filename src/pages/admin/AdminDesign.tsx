@@ -9,6 +9,7 @@ const AdminDesign = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [logoUrl, setLogoUrl] = useState("");
   
   // Colors
   const [primaryColor, setPrimaryColor] = useState("#D4AF37");
@@ -25,6 +26,35 @@ const AdminDesign = () => {
   const [heroSubtitle, setHeroSubtitle] = useState("Select your favorite moments");
   const [aboutTitle, setAboutTitle] = useState("About Your Selection");
   const [aboutDescription, setAboutDescription] = useState("Choose the photos that capture your special moments.");
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      // Convert to base64 for storage
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result as string;
+        setLogoUrl(base64String);
+        
+        // Save to database
+        await db.adminSettings.set('logo_url', { url: base64String });
+        
+        toast({
+          title: "Logo Uploaded",
+          description: "Logo has been saved successfully",
+        });
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to upload logo",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleSave = async () => {
     setLoading(true);
@@ -189,10 +219,24 @@ const AdminDesign = () => {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2">Main Logo (used across all pages)</label>
-              <GoldButton variant="outline">
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Logo
-              </GoldButton>
+              <div className="flex items-center gap-4">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                  id="logo-upload"
+                />
+                <label htmlFor="logo-upload">
+                  <GoldButton variant="outline" type="button" onClick={() => document.getElementById('logo-upload')?.click()}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Logo
+                  </GoldButton>
+                </label>
+                {logoUrl && (
+                  <img src={logoUrl} alt="Logo preview" className="h-16 rounded-lg shadow-sm" />
+                )}
+              </div>
               <p className="text-xs text-muted-foreground mt-2">Recommended: PNG with transparent background, 200x80px</p>
             </div>
           </div>

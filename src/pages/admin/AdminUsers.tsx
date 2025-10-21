@@ -126,7 +126,7 @@ const AdminUsers = () => {
               <Download className="w-4 h-4 mr-2" />
               Download CSV
             </GoldButton>
-            <GoldButton onClick={() => toast({ title: "Add User", description: "Feature coming soon" })}>
+            <GoldButton onClick={() => navigate('/admin/users/new')}>
               <Plus className="w-4 h-4 mr-2" />
               Add User
             </GoldButton>
